@@ -6,32 +6,77 @@ metadata:
 spec:
   replicas: 2
   selector:
-    matchLabels: { app: cloudflared }
+    matchLabels:
+      app: cloudflared
   template:
     metadata:
-      labels: { app: cloudflared }
+      labels:
+        app: cloudflared
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: cloudflared
           image: cloudflare/cloudflared:2025.10.0
-          args: [tunnel, --no-autoupdate, run, --token, "$(TUNNEL_TOKEN)"]
+          args:
+            - tunnel
+            - --no-autoupdate
+            - run
+            - --token
+            - $(TUNNEL_TOKEN)
           env:
             - name: TUNNEL_TOKEN
-              valueFrom: { secretKeyRef: { name: cloudflared-token, key: token } }
-          readinessProbe: { tcpSocket: { port: 2000 }, initialDelaySeconds: 5 }
-          livenessProbe: { httpGet: { path: /ready, port: 2000 }, initialDelaySeconds: 10 }
-          ports: [{ name: metrics, containerPort: 2000 }]
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-token
+                  key: token
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            tcpSocket:
+              port: 2000
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 10
+          ports:
+            - name: metrics
+              containerPort: 2000
           resources:
-            requests: { cpu: 50m, memory: 64Mi }
-            limits: { cpu: 250m, memory: 256Mi }
-
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: cloudflared-metrics
   namespace: networking
-  labels: { app: cloudflared }
+  labels:
+    app: cloudflared
 spec:
-  selector: { app: cloudflared }
-  ports: [{ name: metrics, port: 2000, targetPort: metrics }]
+  selector:
+    app: cloudflared
+  ports:
+    - name: metrics
+      port: 2000
+      targetPort: metrics

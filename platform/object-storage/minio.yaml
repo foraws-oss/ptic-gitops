@@ -1,42 +1,108 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
-metadata: { name: minio-data, namespace: storage }
+metadata:
+  name: minio-data
+  namespace: storage
 spec:
-  accessModes: [ReadWriteOnce]
+  accessModes:
+    - ReadWriteOnce
   storageClassName: hostpath-minio
-  resources: { requests: { storage: 20Gi } }
+  resources:
+    requests:
+      storage: 20Gi
 ---
 apiVersion: apps/v1
 kind: StatefulSet
-metadata: { name: minio, namespace: storage }
+metadata:
+  name: minio
+  namespace: storage
 spec:
   serviceName: minio
   replicas: 1
-  selector: { matchLabels: { app: minio } }
+  selector:
+    matchLabels:
+      app: minio
   template:
-    metadata: { labels: { app: minio } }
+    metadata:
+      labels:
+        app: minio
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: minio
           image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-          args: [server, /data, --console-address, ":9001"]
+          args:
+            - server
+            - /data
+            - --console-address
+            - ":9001"
           env:
             - name: MINIO_ROOT_USER
-              valueFrom: { secretKeyRef: { name: minio-root, key: username } }
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root
+                  key: username
             - name: MINIO_ROOT_PASSWORD
-              valueFrom: { secretKeyRef: { name: minio-root, key: password } }
-          ports: [{ name: s3, containerPort: 9000 }, { name: console, containerPort: 9001 }]
-          readinessProbe: { httpGet: { path: /minio/health/ready, port: s3 }, initialDelaySeconds: 10 }
-          livenessProbe: { httpGet: { path: /minio/health/live, port: s3 }, initialDelaySeconds: 20 }
-          volumeMounts: [{ name: data, mountPath: /data }]
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root
+                  key: password
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: s3
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: s3
+            initialDelaySeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
           resources:
-            requests: { cpu: 100m, memory: 256Mi }
-            limits: { cpu: "1", memory: 1Gi }
-      volumes: [{ name: data, persistentVolumeClaim: { claimName: minio-data } }]
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minio-data
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: minio, namespace: storage }
+metadata:
+  name: minio
+  namespace: storage
 spec:
-  selector: { app: minio }
-  ports: [{ name: s3, port: 9000, targetPort: s3 }, { name: console, port: 9001, targetPort: console }]
+  selector:
+    app: minio
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+    - name: console
+      port: 9001
+      targetPort: console
