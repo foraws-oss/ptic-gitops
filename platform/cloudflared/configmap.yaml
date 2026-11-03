@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: networking
+data:
+  config.yaml: |
+    # Replace hostnames with your Cloudflare DNS hostnames.
+    # Use a remotely-managed tunnel token (Secret cloudflared-token).
+    tunnel: ${TUNNEL_ID}
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    ingress:
+      - hostname: "*.example.com"
+        service: http://traefik.networking.svc.cluster.local:80
+      - service: http_status:404

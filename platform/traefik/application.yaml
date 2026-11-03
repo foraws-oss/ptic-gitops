@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: traefik, namespace: argocd }
+spec:
+  project: default
+  source:
+    repoURL: https://traefik.github.io/charts
+    chart: traefik
+    targetRevision: 34.4.1
+    helm:
+      releaseName: traefik
+      values: |
+        deployment:
+          replicas: 2
+        providers:
+          kubernetesGateway:
+            enabled: true
+        gateway:
+          listeners:
+            web:
+              port: 8000
+              protocol: HTTP
+              namespacePolicy: { from: All }
+        ports:
+          web: { expose: { default: true } }
+        metrics:
+          prometheus:
+            entryPoint: metrics
+            addRoutersLabels: true
+        logs:
+          general: { format: json }
+          access:
+            enabled: true
+            format: json
+        service:
+          type: ClusterIP
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: networking
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]

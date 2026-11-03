@@ -1,0 +1,68 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hostpath-local
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata: { name: postgres-dev-pv }
+spec:
+  capacity: { storage: 5Gi }
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: hostpath-local
+  hostPath: { path: /var/lib/ptic/postgres/dev, type: DirectoryOrCreate }
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions: [{ key: ptic.storage/dev, operator: In, values: ["true"] }]
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata: { name: postgres-staging-pv }
+spec:
+  capacity: { storage: 10Gi }
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: hostpath-local
+  hostPath: { path: /var/lib/ptic/postgres/staging, type: DirectoryOrCreate }
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions: [{ key: ptic.storage/staging, operator: In, values: ["true"] }]
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata: { name: postgres-prod-pv }
+spec:
+  capacity: { storage: 20Gi }
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: hostpath-local
+  hostPath: { path: /var/lib/ptic/postgres/prod, type: DirectoryOrCreate }
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - { key: ptic.storage/prod, operator: In, values: ["true"] }
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata: { name: minio-pv }
+spec:
+  capacity: { storage: 20Gi }
+  volumeMode: Filesystem
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: hostpath-local
+  hostPath: { path: /var/lib/ptic/minio, type: DirectoryOrCreate }
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions: [{ key: ptic.storage/minio, operator: In, values: ["true"] }]

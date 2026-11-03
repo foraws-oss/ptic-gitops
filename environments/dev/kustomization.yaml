@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - ../../apps/backend/overlays/dev
+  - ../../apps/frontend/overlays/dev
+  - ../../apps/postgres/overlays/dev
+  - routes.yaml
+  - pdb.yaml

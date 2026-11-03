@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+age.key
+secrets.yaml
+secret*.yaml
+!*.enc.yaml
+.DS_Store
+.terraform/
