@@ -1,4 +1,4 @@
-```yaml
+
 name: GitOps Security & Validation
 
 on:
@@ -115,4 +115,3 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/dependency-review-action@v4
-```
