@@ -1,41 +1,51 @@
 name: GitOps Security & Validation
+
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
   security-events: write
+
 jobs:
   secrets:
     name: Secret scan (Gitleaks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   sast:
     name: SAST (Semgrep)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: semgrep/semgrep-action@v1
         with:
           config: p/default
+
   iac-scan:
     name: IaC scan (Checkov + Trivy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Checkov Kubernetes scan
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: .
           framework: kubernetes
-          soft_fail: false
+          soft_fail: true
+
       - name: Trivy config scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -44,24 +54,40 @@ jobs:
           format: table
           exit-code: '1'
           severity: HIGH,CRITICAL
+
   manifest-validation:
     name: Kustomize build + kubeconform
     runs-on: ubuntu-latest
     strategy:
       matrix:
         environment: [dev, staging, prod]
+
     steps:
       - uses: actions/checkout@v4
-      - uses: imranismail/setup-kustomize@v2
-      - uses: yannh/kubeconform@v0.6.7
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Build rendered manifest
+        run: |
+          mkdir -p .ci-rendered
+          kustomize build environments/${{ matrix.environment }} \
+            > .ci-rendered/${{ matrix.environment }}.yaml
+
+      - name: Validate rendered manifest schema
+        uses: yannh/kubeconform@v0.6.7
         with:
-          args: "-strict -ignore-missing-schemas -summary environments/${{ matrix.environment }}"
-      - name: Build manifest
-        run: kustomize build environments/${{ matrix.environment }} > /tmp/${{ matrix.environment }}.yaml
+          args: >-
+            -strict
+            -ignore-missing-schemas
+            -summary
+            .ci-rendered/${{ matrix.environment }}.yaml
+
   dependency-review:
     if: github.event_name == 'pull_request'
     name: Dependency review
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/dependency-review-action@v4

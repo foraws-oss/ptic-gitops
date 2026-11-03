@@ -8,7 +8,7 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:16
   storage:
     size: 10Gi
-    storageClass: hostpath-local
+    storageClass: hostpath-staging
   bootstrap:
     initdb:
       database: app

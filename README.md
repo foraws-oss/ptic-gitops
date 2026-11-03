@@ -8,28 +8,41 @@ A GitOps-first Kubernetes reference repository for a bare-metal homelab with **A
 
 ```text
 Developer PR / merge
-       |
-       v
-GitHub Actions: Gitleaks -> Semgrep -> Checkov -> Trivy config -> kubeconform
-       |
-       v
-Git main (desired state) <------------------------------+
-       |                                                 |
-       v                                                 |
-Argo CD (App-of-Apps; automated sync + self-heal)        |
-       |                                                 |
-       +--> platform: Traefik Gateway / CNPG / MinIO / monitoring
-       +--> dev namespace       +--> staging namespace  +--> prod namespace
-                    |                    |                     |
-               API + UI             API + UI              API + UI
-                    |                    |                     |
-                    +--------------------+---------------------+
-                                         |
-                           Cloudflare Tunnel connector(s)
-                                         |
-                                  Cloudflare Edge
-                                         |
-                                      Internet
+        |
+        v
+GitHub Actions: security scans + manifest validation
+        |
+        v
+Git main (desired state)
+        |
+        v
+Argo CD (App-of-Apps; automated sync + self-heal)
+        |
+        +--> Platform services
+        |      Traefik / CNPG / MinIO / Observability
+        |
+        +--> dev namespace
+        +--> staging namespace
+        +--> prod namespace
+
+Internet
+   |
+   v
+Cloudflare Edge
+   |
+   v
+Cloudflare Tunnel
+   |
+   v
+cloudflared connector(s)
+(outbound connection)
+   |
+   v
+Traefik Gateway
+   |
+   +--> Frontend
+   |
+   +--> Backend
 ```
 
 All environments are logical namespaces on the same homelab cluster in this starter. For stronger isolation, use separate clusters and one Argo CD Application per cluster while retaining the same overlays. The single-cluster layout is explicit so the manifests can be reviewed and built without inventing cluster infrastructure.
@@ -39,16 +52,16 @@ All environments are logical namespaces on the same homelab cluster in this star
 ```text
 bootstrap/argocd/                 Argo CD root Application and install notes
 platform/                          Shared platform components
-  cloudnative-pg/                   CNPG Cluster resources (operator installed by Argo CD)
+  cloudnative-pg/                   CloudNativePG operator installation
   traefik/                          Gateway API objects and Traefik Helm Application
-  cloudflared/                      Tunnel Deployment + ConfigMap (token from Secret)
+  cloudflared/                      cloudflared Deployment (token from Kubernetes Secret)
   observability/                    kube-prometheus-stack + Loki Helm Applications
-  object-storage/                   MinIO Tenant placeholder / S3 endpoint contract
+  object-storage/                   MinIO StatefulSet and S3-compatible Service
   policies/                         Pod security and network policy examples
 apps/{backend,frontend}/base/       reusable Deployments and Services
 apps/{backend,frontend}/overlays/   dev, staging, prod settings
 apps/postgres/overlays/             per-environment CNPG cluster sizing/storage
-apps/kustomization.yaml             shared app composition
+apps/kustomization.yaml             placeholder for future shared app composition
  environments/{dev,staging,prod}/   environment entrypoints
 .github/workflows/                  CI validation and security scanning
 scripts/                            local validation helpers
@@ -59,7 +72,7 @@ scripts/                            local validation helpers
 - A Kubernetes cluster already exists; nodes are labelled and have a dedicated local directory for database data.
 - Argo CD is installed once using the official installation procedure, then `bootstrap/argocd/root-app.yaml` is applied. The root Application manages the environment Applications.
 - Gateway API CRDs must be installed before the Traefik Gateway resources. The Traefik Helm release is configured with Gateway API support.
-- CloudNativePG operator, MinIO Operator (if using the Tenant CR), Prometheus Operator CRDs and Loki are installed/managed by the declared Argo CD Helm Applications.
+- CloudNativePG operator, Prometheus Operator CRDs and Loki are installed/managed by the declared Argo CD Applications/Helm releases. MinIO is currently deployed as a single-replica StatefulSet, not through the MinIO Operator.
 - Cloudflare Tunnel is already created in Cloudflare. Store its token as a Kubernetes Secret named `cloudflared-token` in namespace `networking`; do not commit it.
 - Label storage nodes (`ptic.storage/dev=true`, `ptic.storage/staging=true`, `ptic.storage/prod=true`) and create `/var/lib/ptic/postgres/{dev,staging,prod}` on the matching nodes. Static PVs are declared in `platform/storage/hostpath-storage.yaml`. HostPath is node-local and is not replicated storage.
 - Replace `ghcr.io/your-org/ptic-{backend,frontend}:0.1.0` with images built and published by your application CI. This assignment intentionally contains no application code.
@@ -67,7 +80,7 @@ scripts/                            local validation helpers
 
 ## Environments and promotion
 
-Each environment has its own Kustomize entrypoint and namespace. Differences are limited to replicas, resource requests/limits, hostnames, and database sizing. Promote by opening a PR that copies the tested image tag and approved configuration from `dev` to `staging`, then from `staging` to `prod`. Require CI and reviewer approval; production overlay changes should be protected by CODEOWNERS/branch protection. Do not let CI directly mutate the cluster: CI validates and builds artifacts; Argo CD pulls desired state from Git.
+Each environment has its own Kustomize entrypoint and namespace. Differences are limited to replicas, resource requests/limits, hostnames, and database sizing. Promote by opening a PR that copies the tested image tag and approved configuration from `dev` to `staging`, then from `staging` to `prod`. Require CI and reviewer approval; configure branch protection and assign real CODEOWNERS before production use. Do not let CI directly mutate the cluster: CI validates and builds artifacts; Argo CD pulls desired state from Git.
 
 Suggested release flow:
 1. Merge app source PR; application CI builds an immutable image tag and publishes an SBOM/provenance.
@@ -155,9 +168,9 @@ Note: some CRDs (CNPG, Gateway API, Prometheus Operator, MinIO) require their CR
 - [ ] Create `cloudflared-token` Secret in `networking` securely.
 - [ ] Create hostPath directories and enforce node labels/taints/permissions.
 - [ ] Decide CNPG backup destination and test restore from off-node backup.
-- [ ] Deploy MinIO operator/tenant or configure external S3.
+- [ ] Review MinIO's single-replica limitations; configure external S3 or a distributed object-storage design if higher availability is required.
 - [ ] Configure TLS origin policy, Cloudflare Access/WAF and DNS routes.
-- [ ] Configure NetworkPolicies, Pod Security Admission, RBAC and resource quotas.
+- [ ] Verify the existing NetworkPolicies against actual application, ingress and monitoring traffic; review RBAC and resource quotas.
 - [ ] Configure SOPS decryption in Argo CD and test secret rotation.
 - [ ] Pin GitHub Actions to immutable SHAs and protect `main`/production paths.
 - [ ] Run failure drills: node loss, DB restore, tunnel restart, Argo CD rollback.

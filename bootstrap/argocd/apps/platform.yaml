@@ -4,7 +4,7 @@ metadata: { name: ptic-platform, namespace: argocd }
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/ptic-gitops.git
+    repoURL: https://github.com/foraws-oss/ptic-gitops.git
     targetRevision: main
     path: platform
   destination:

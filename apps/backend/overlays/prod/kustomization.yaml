@@ -6,5 +6,5 @@ resources:
 replicas:
   - name: backend
     count: 3
-patchesStrategicMerge:
-  - patch-resources.yaml
+patches:
+  - path: patch-resources.yaml

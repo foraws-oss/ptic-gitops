@@ -11,12 +11,14 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: frontend }
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: frontend
           image: ghcr.io/your-org/ptic-frontend:0.1.0
+          imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8080 }]
           readinessProbe: { httpGet: { path: /, port: http }, periodSeconds: 10 }
           livenessProbe: { httpGet: { path: /, port: http }, periodSeconds: 20 }

@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim
 metadata: { name: minio-data, namespace: storage }
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: hostpath-local
+  storageClassName: hostpath-minio
   resources: { requests: { storage: 20Gi } }
 ---
 apiVersion: apps/v1

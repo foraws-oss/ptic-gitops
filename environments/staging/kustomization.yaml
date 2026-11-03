@@ -7,3 +7,4 @@ resources:
   - ../../apps/postgres/overlays/staging
   - routes.yaml
   - pdb.yaml
+  - network-policy.yaml

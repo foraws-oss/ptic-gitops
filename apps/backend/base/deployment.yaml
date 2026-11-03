@@ -15,12 +15,14 @@ spec:
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: backend
           image: ghcr.io/your-org/ptic-backend:0.1.0
+          imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8080 }]
           env:
             - { name: PORT, value: "8080" }

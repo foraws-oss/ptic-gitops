@@ -12,6 +12,8 @@ spec:
       values: |
         deployment:
           replicas: 2
+          podLabels:
+            networking.ptic.io/component: traefik
         providers:
           kubernetesGateway:
             enabled: true

@@ -1,2 +1,1 @@
-/environments/prod/ @your-org/platform-owners
-/platform/ @your-org/platform-owners
+# Add real GitHub users or teams when repository ownership is assigned.
